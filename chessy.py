@@ -211,11 +211,5 @@ def reset():
     score = calculate_score(board)
     return jsonify({'fen': board.fen(), 'status': 'Your move (White).', 'score': score})
 
-@app.route('/test-promotion')
-def test_promotion():
-    global board
-    board = chess.Board("4k3/4P3/8/8/8/8/8/4K3 w - - 0 1")
-    return jsonify({'fen': board.fen(), 'msg': 'Test board set for promotion'})
-
 if __name__ == '__main__':
     app.run(debug=True)
