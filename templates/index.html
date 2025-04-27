@@ -1,339 +1,394 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chess Game with AI (Flask)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <style>
-        .board-container { position: relative; width: 480px; margin: 0 auto; margin-bottom: 20px; }
-        .board { display: grid; grid-template-columns: repeat(8, 1fr); width: 400px; height: 400px; border: 2px solid #000; }
-        .square { width: 50px; height: 50px; display: flex; justify-content: center; align-items: center; font-size: 30px; cursor: pointer; }
-        .light { background-color: #f0d9b5; }
-        .dark { background-color: #b58863; }
-        .selected { background-color: #ffeb3b !important; }
-        .possible-move { background-color: #90ee90 !important; }
-        .white-piece { color: #fff; text-shadow: 1px 1px 2px #000; }
-        .black-piece { color: #000; text-shadow: 1px 1px 2px #fff; }
-        .coords { font-size: 14px; color: #000; position: absolute; }
-        .coords-rank { top: -20px; left: 0; width: 400px; display: flex; justify-content: space-around; }
-        .coords-file { top: 0; left: -20px; height: 400px; display: flex; flex-direction: column; justify-content: space-around; }
-        .coords-file div { text-align: center; }
-        #status { color: red; font-size: 1.2em; margin: 10px 0; }
-        #score { font-size: 1.1em; margin: 5px 0; }
-        /* Promotion animation */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.5); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .promoted { animation: fadeIn 0.5s ease-in; }
-        /* Checkmate animation */
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-        .checkmate { animation: shake 0.5s ease-in-out; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess Game with AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in-up {
+      animation: fadeInUp 0.6s ease-out forwards;
+    }
+    .glow {
+      box-shadow: 0 0 8px rgba(0,0,0,0.5);
+    }
+    .board-container {
+      position: relative;
+      width: 680px;
+      margin-bottom: 80px;
+      animation: fadeInUp 1s ease-out;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      width: 600px;
+      height: 600px;
+      border: 4px solid #4a2c0d;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .square {
+      width: 75px;
+      height: 75px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 45px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+    .square:hover {
+      transform: scale(1.05);
+    }
+    .light { background-color: #f0d9b5; }
+    .dark { background-color: #b58863; }
+    .white-piece { color: #fff; text-shadow: 1px 1px 2px #000; }
+    .black-piece { color: #000; text-shadow: 1px 1px 2px #fff; }
+    .coords {
+      font-size: 18px;
+      color: #4a2c0d;
+      font-weight: bold;
+      position: absolute;
+    }
+    .coords-rank, .coords-file {
+      animation: fadeInUp 0.5s ease-out;
+    }
+    .coords-rank {
+      top: -28px;
+      left: 0;
+      width: 600px;
+      display: flex;
+      justify-content: space-around;
+    }
+    .coords-file {
+      top: 0;
+      left: -28px;
+      height: 600px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+    }
+    .coords-file div {
+      text-align: center;
+    }
+    #status {
+      color: #ef4444;
+      font-size: 1.3em;
+      margin: 20px auto;
+      text-align: center;
+      font-weight: bold;
+    }
+    #score {
+      font-size: 1.2em;
+      color: #1d3557;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .controls-container {
+      border: 2px solid #4a2c0d;
+      border-radius: 10px;
+      padding: 30px;
+      background: linear-gradient(to right, #ffffff, #f8fafc);
+      box-shadow: 0 4px 50px rgba(0,0,0,0.1);
+      width: 320px;
+      animation: fadeInUp 1.2s ease-out;
+    }
+  </style>
 </head>
-<body class="flex justify-center items-center min-h-screen bg-gray-100">
-    <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-        <h1 class="text-2xl font-bold mb-4">Chess Game (You vs AI)</h1>
-        <p class="mb-4">You are White. Click a piece, then a highlighted square to move (e.g., e2e4). When a pawn reaches rank 8, enter q, b, n, or r in the text box to promote. AI plays Black.</p>
-        <div class="board-container">
-            <div class="coords coords-rank">
-                <div>a</div><div>b</div><div>c</div><div>d</div><div>e</div><div>f</div><div>g</div><div>h</div>
-            </div>
-            <div class="coords coords-file">
-                <div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div>
-            </div>
-            <div id="board" class="board"></div>
-            <div class="coords coords-rank" style="top: 404px;">
-                <div>a</div><div>b</div><div>c</div><div>d</div><div>e</div><div>f</div><div>g</div><div>h</div>
-            </div>
-            <div class="coords coords-file" style="left: 404px;">
-                <div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div>
-            </div>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-100 flex items-center justify-center">
+  <div class="max-w-7xl w-full px-6 py-12 flex flex-col lg:flex-row gap-12">
+    <!-- Chess Board -->
+    <div class="flex flex-col items-center w-full lg:w-auto fade-in-up">
+      <h1 class="text-4xl font-bold text-indigo-700 mb-2 animate-bounce"><i class="fas fa-chess"></i> Chess Game</h1>
+      <p class="text-gray-600 mb-6 text-center">Play against AI. You are <strong>White</strong>. Enter a move!</p>
+      <div class="board-container">
+        <div class="coords coords-rank">
+          <div>a</div><div>b</div><div>c</div><div>d</div><div>e</div><div>f</div><div>g</div><div>h</div>
         </div>
-        <div id="score" class="text-center">Score: {{ score }} (Positive = White advantage)</div>
-        <div class="mt-4 flex">
-            <input id="move-input" type="text" placeholder="e.g., e2e4 or q for promotion" class="border rounded p-2 flex-grow">
-            <button id="move-button" class="bg-blue-500 text-white rounded p-2 ml-2 hover:bg-blue-600">Move</button>
+        <div class="coords coords-file">
+          <div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div>
         </div>
-        <div class="mt-2 flex">
-            <button id="undo-button" class="bg-yellow-500 text-white rounded p-2 w-1/2 mr-1 hover:bg-yellow-600">Undo Move</button>
-            <button id="reset-button" class="bg-gray-500 text-white rounded p-2 w-1/2 ml-1 hover:bg-gray-600">Reset Game</button>
+        <div id="board" class="board"></div>
+        <div class="coords coords-rank" style="top: 604px;">
+          <div>a</div><div>b</div><div>c</div><div>d</div><div>e</div><div>f</div><div>g</div><div>h</div>
         </div>
-        <div id="status" class="text-center">{{ status }}</div>
+        <div class="coords coords-file" style="left: 604px;">
+          <div>8</div><div>7</div><div>6</div><div>5</div><div>4</div><div>3</div><div>2</div><div>1</div>
+        </div>
+      </div>
     </div>
 
-    <script>
-        // Initialize board from FEN
-        let selectedSquare = null;
-        let isPromoting = false;
-        const pieceSymbols = {
-            'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛', 'k': '♚',
-            'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕', 'K': '♔'
-        };
+    <!-- Controls -->
+    <div class="controls-container fade-in-up">
+      <div id="score">Score: {{ score }} (Positive = White advantage)</div>
+      <!-- Difficulty Slider -->
+      <div class="mb-3">
+        <label for="difficulty" class="block text-gray-700 font-semibold mb-1">AI Difficulty: <span id="difficulty-value">3</span></label>
+        <input id="difficulty" type="range" min="2" max="5" value="3" class="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      </div>
+      <!-- Move Input -->
+      <input id="move-input" type="text" placeholder="e.g., e2e4 or q for promotion" class="border-2 border-indigo-300 rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 transition mb-3" />
+      <button id="move-button" class="bg-indigo-600 text-white font-semibold rounded-lg p-3 w-full hover:bg-indigo-700 transition mb-3">
+        <i class="fas fa-location-arrow"></i> Move
+      </button>
+      <button id="undo-button" class="bg-yellow-500 text-white font-semibold rounded-lg p-3 w-full hover:bg-yellow-600 transition mb-3">
+        <i class="fas fa-undo"></i> Undo
+      </button>
+      <button id="reset-button" class="bg-gray-500 text-white font-semibold rounded-lg p-3 w-full hover:bg-gray-600 transition mb-3">
+        <i class="fas fa-sync"></i> Reset
+      </button>
+      <!-- Feedback Form (Hidden Initially) -->
+      <div id="feedback-form" type="text">
+        <label for="feedback-input" class="block text-gray-700 font-semibold mb-1">Feedback (max 250 characters):</label>
+        <textarea id="feedback-input" maxlength="250" placeholder="Share your feedback..." class="border-2 border-indigo-300 rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 transition mb-3 resize-none" rows="3"></textarea>
+        <button id="feedback-button" class="bg-green-500 text-white font-semibold rounded-lg p-3 w-full hover:bg-green-600 transition">
+          <i class="fas fa-comment"></i> Submit Feedback
+        </button>
+      </div>
+      <div id="status"></div>
+    </div>
+  </div>
 
-        function renderBoard(fen, promotedSquare = null) {
-            const board = $('#board').empty().removeClass('checkmate');
-            const fenParts = fen.split(' ')[0];
-            const rows = fenParts.split('/');
+  <!-- JS Functionality -->
+  <script>
+    // Initialize board from FEN
+    const pieceSymbols = {
+      'p': '♟', 'n': '♞', 'b': '♝', 'r': '♜', 'q': '♛', 'k': '♚',
+      'P': '♙', 'N': '♘', 'B': '♗', 'R': '♖', 'Q': '♕', 'K': '♔'
+    };
 
-            for (let rank = 7; rank >= 0; rank--) {
-                let row = rows[7 - rank];
-                let file = 0;
-                for (let char of row) {
-                    if (isNaN(char)) {
-                        const square = $('<div>')
-                            .addClass('square')
-                            .addClass((rank + file) % 2 === 0 ? 'light' : 'dark')
-                            .addClass(char === char.toUpperCase() ? 'white-piece' : 'black-piece')
-                            .attr('data-square', String.fromCharCode(97 + file) + (8 - rank))
-                            .text(pieceSymbols[char] || '');
-                        if (promotedSquare && promotedSquare === String.fromCharCode(97 + file) + (8 - rank)) {
-                            square.addClass('promoted');
-                        }
-                        board.append(square);
-                        file++;
-                    } else {
-                        const emptyCount = parseInt(char);
-                        for (let i = 0; i < emptyCount; i++) {
-                            const square = $('<div>')
-                                .addClass('square')
-                                .addClass((rank + file) % 2 === 0 ? 'light' : 'dark')
-                                .attr('data-square', String.fromCharCode(97 + file) + (8 - rank))
-                                .text('');
-                            board.append(square);
-                            file++;
-                        }
-                    }
-                }
+    function renderBoard(fen, promotedSquare = null, capturedSquare = null, isHumanCapture = false) {
+      const board = $('#board').empty().removeClass('checkmate');
+      const fenParts = fen.split(' ')[0];
+      const rows = fenParts.split('/');
+
+      for (let rank = 7; rank >= 0; rank--) {
+        let row = rows[7 - rank];
+        let file = 0;
+        for (let char of row) {
+          if (isNaN(char)) {
+            const square = $('<div>')
+              .addClass('square')
+              .addClass((rank + file) % 2 === 0 ? 'light' : 'dark')
+              .addClass(char === char.toUpperCase() ? 'white-piece' : 'black-piece')
+              .attr('data-square', String.fromCharCode(97 + file) + (8 - rank))
+              .text(pieceSymbols[char] || '');
+            if (promotedSquare && promotedSquare === String.fromCharCode(97 + file) + (8 - rank)) {
+              square.addClass('promoted');
             }
+            if (capturedSquare && capturedSquare === String.fromCharCode(97 + file) + (8 - rank)) {
+              if (isHumanCapture) {
+                square.addClass((rank + file) % 2 === 0 ? 'human-capture-light' : 'human-capture-dark');
+              } else {
+                square.addClass((rank + file) % 2 === 0 ? 'ai-capture-light' : 'ai-capture-dark');
+              }
+            }
+            board.append(square);
+            file++;
+          } else {
+            const emptyCount = parseInt(char);
+            for (let i = 0; i < emptyCount; i++) {
+              const square = $('<div>')
+                .addClass('square')
+                .addClass((rank + file) % 2 === 0 ? 'light' : 'dark')
+                .attr('data-square', String.fromCharCode(97 + file) + (8 - rank))
+                .text('');
+              if (capturedSquare && capturedSquare === String.fromCharCode(97 + file) + (8 - rank)) {
+                if (isHumanCapture) {
+                  square.addClass((rank + file) % 2 === 0 ? 'human-capture-light' : 'human-capture-dark');
+                } else {
+                  square.addClass((rank + file) % 2 === 0 ? 'ai-capture-light' : 'ai-capture-dark');
+                }
+              }
+              board.append(square);
+              file++;
+            }
+          }
         }
+      }
+    }
 
-        // Initial board render
-        renderBoard('{{ board }}');
+    // Initial board render
+    renderBoard('{{ board }}');
 
-        // Function to get possible moves for a piece
-        function getPossibleMoves(square) {
-            const possibleMoves = [];
-            const fen = $('#board').data('fen') || '{{ board }}';
-            const squareIndex = (8 - parseInt(square[1])) * 8 + (square.charCodeAt(0) - 97);
-            const row = fen.split(' ')[0].split('/')[8 - parseInt(square[1])];
-            let file = 0, fenIndex = 0;
-            while (file <= square.charCodeAt(0) - 97) {
-                const char = row[fenIndex];
+    // Update difficulty display
+    $('#difficulty').on('input', function() {
+      $('#difficulty-value').text($(this).val());
+    });
+
+    // Function to handle moves
+    function makeMove(move, promotion = null) {
+      const difficulty = $('#difficulty').val();
+      $.ajax({
+        url: '/move',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ move: move, promotion: promotion, difficulty: difficulty }),
+        success: function(data) {
+          if (data.error) {
+            $('#status').text(data.error);
+            console.log('Error from server:', data.error);
+          } else {
+            $('#board').data('fen', data.fen);
+            let capturedSquare = null;
+            let isHumanCapture = false;
+            let isAICapture = false;
+
+            // Check for human capture
+            if (move && !promotion) {
+              const toSquare = move.slice(2, 4);
+              const prevFen = $('#board').data('fen') || '{{ board }}';
+              const prevRow = prevFen.split(' ')[0].split('/')[8 - parseInt(toSquare[1])];
+              let file = 0, fenIndex = 0;
+              while (file <= toSquare.charCodeAt(0) - 97) {
+                const char = prevRow[fenIndex];
                 if (isNaN(char)) {
-                    file++;
-                    fenIndex++;
+                  file++;
+                  fenIndex++;
                 } else {
-                    file += parseInt(char);
-                    fenIndex++;
+                  file += parseInt(char);
+                  fenIndex++;
                 }
+              }
+              const prevPiece = prevRow[fenIndex - 1];
+              if (prevPiece && prevPiece === prevPiece.toLowerCase()) {
+                capturedSquare = toSquare;
+                isHumanCapture = true;
+              }
             }
-            const piece = row[fenIndex - 1];
-            if (!piece || piece !== piece.toUpperCase()) return possibleMoves;
 
-            const rank = parseInt(square[1]);
-            const fileChar = square[0];
-            const fileIdx = square.charCodeAt(0) - 97;
-
-            if (piece.toLowerCase() === 'p') {
-                if (rank < 8) possibleMoves.push(fileChar + (rank + 1));
-                if (rank === 2) possibleMoves.push(fileChar + (rank + 2));
-                if (fileIdx > 0 && rank < 8) possibleMoves.push(String.fromCharCode(97 + fileIdx - 1) + (rank + 1));
-                if (fileIdx < 7 && rank < 8) possibleMoves.push(String.fromCharCode(97 + fileIdx + 1) + (rank + 1));
-                // Include promotion captures
-                if (rank === 7 && fileIdx > 0) possibleMoves.push(String.fromCharCode(97 + fileIdx - 1) + 8);
-                if (rank === 7 && fileIdx < 7) possibleMoves.push(String.fromCharCode(97 + fileIdx + 1) + 8);
-            } else if (piece.toLowerCase() === 'n') {
-                const knightMoves = [
-                    [-2, -1], [-2, 1], [-1, -2], [-1, 2],
-                    [1, -2], [1, 2], [2, -1], [2, 1]
-                ];
-                for (const [dr, df] of knightMoves) {
-                    const newRank = rank + dr;
-                    const newFile = fileIdx + df;
-                    if (newRank >= 1 && newRank <= 8 && newFile >= 0 && newFile <= 7) {
-                        possibleMoves.push(String.fromCharCode(97 + newFile) + newRank);
-                    }
+            // Check for AI capture
+            if (data.ai_move) {
+              const aiToSquare = data.ai_move.slice(2, 4);
+              const humanFen = $('#board').data('fen') || '{{ board }}';
+              const humanRow = humanFen.split(' ')[0].split('/')[8 - parseInt(aiToSquare[1])];
+              let aiFile = 0, aiFenIndex = 0;
+              while (aiFile <= aiToSquare.charCodeAt(0) - 97) {
+                const char = humanRow[aiFenIndex];
+                if (isNaN(char)) {
+                  aiFile++;
+                  aiFenIndex++;
+                } else {
+                  aiFile += parseInt(char);
+                  aiFenIndex++;
                 }
+              }
+              const aiPrevPiece = humanRow[aiFenIndex - 1];
+              if (aiPrevPiece && aiPrevPiece === aiPrevPiece.toUpperCase()) {
+                capturedSquare = aiToSquare;
+                isAICapture = true;
+              }
             }
-            return possibleMoves;
+
+            const promotedSquare = promotion ? move.slice(2, 4) : null;
+            renderBoard(data.fen, promotedSquare, capturedSquare, isHumanCapture && !isAICapture);
+            $('#status').text(data.status);
+            if (data.ai_move) {
+              $('#status').text('AI moved: ' + data.ai_move + '. ' + data.status);
+            }
+            $('#score').text('Score: ' + data.score + ' (Positive = White advantage)');
+            if (data.checkmate || data.status.includes('Stalemate') || data.status.includes('insufficient material')) {
+              $('#feedback-form').removeClass('hidden');
+            }
+          }
+        },
+        error: function(xhr, status, error) {
+          console.log('AJAX error:', status, error);
+          $('#status').text('Error communicating with server.');
         }
+      });
+    }
 
-        // Function to handle moves
-        function makeMove(move, promotion = null) {
-            $.ajax({
-                url: '/move',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({ move: move, promotion: promotion }),
-                success: function(data) {
-                    if (data.error) {
-                        $('#status').text(data.error);
-                        console.log('Error from server:', data.error);
-                    } else {
-                        $('#board').data('fen', data.fen);
-                        const promotedSquare = promotion ? move.slice(2, 4) : null;
-                        renderBoard(data.fen, promotedSquare);
-                        $('#status').text(data.status);
-                        if (data.ai_move) {
-                            $('#status').text('AI moved: ' + data.ai_move + '. ' + data.status);
-                        }
-                        $('#score').text('Score: ' + data.score + ' (Positive = White advantage)');
-                        selectedSquare = null;
-                        $('.square').removeClass('selected').removeClass('possible-move');
-                        isPromoting = data.status.includes('Choose promotion piece');
-                        if (data.checkmate) {
-                            $('#board').addClass('checkmate');
-                        }
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.log('AJAX error:', status, error);
-                    $('#status').text('Error communicating with server.');
-                }
-            });
+    // Move button and Enter key handler
+    function handleMoveInput() {
+      const input = $('#move-input').val().trim().toLowerCase();
+      if (input) {
+        $('#board').data('pending-move', input);
+        makeMove(input);
+        $('#move-input').val('');
+      } else {
+        $('#status').text('Enter a move (e.g., e2e4).');
+      }
+    }
+
+    $('#move-button').on('click', handleMoveInput);
+
+    $('#move-input').on('keypress', function(e) {
+      if (e.which === 13) {
+        handleMoveInput();
+      }
+    });
+
+    // Undo button handler
+    $('#undo-button').on('click', function() {
+      $.ajax({
+        url: '/undo',
+        method: 'POST',
+        contentType: 'application/json',
+        success: function(data) {
+          $('#board').data('fen', data.fen);
+          renderBoard(data.fen);
+          $('#status').text(data.status);
+          $('#score').text('Score: ' + data.score + ' (Positive = White advantage)');
+          $('#feedback-form').addClass('hidden');
+        },
+        error: function(xhr, status, error) {
+          console.log('AJAX error on undo:', status, error);
+          $('#status').text('Error undoing move.');
         }
+      });
+    });
 
-        // Square click handler
-        $('.board').on('click', '.square', function() {
-            if (isPromoting) {
-                $('#status').text('Enter q, b, n, or r in the text box to promote.');
-                return;
-            }
-            const square = $(this).attr('data-square');
-            if (selectedSquare) {
-                const move = selectedSquare + square;
-                makeMove(move);
-            } else {
-                const fen = $('#board').data('fen') || '{{ board }}';
-                const squareIndex = (8 - parseInt(square[1])) * 8 + (square.charCodeAt(0) - 97);
-                const row = fen.split(' ')[0].split('/')[8 - parseInt(square[1])];
-                let file = 0, fenIndex = 0;
-                while (file <= square.charCodeAt(0) - 97) {
-                    const char = row[fenIndex];
-                    if (isNaN(char)) {
-                        file++;
-                        fenIndex++;
-                    } else {
-                        file += parseInt(char);
-                        fenIndex++;
-                    }
-                }
-                const piece = row[fenIndex - 1];
-                if (piece && piece === piece.toUpperCase()) {
-                    selectedSquare = square;
-                    $('.square').removeClass('selected').removeClass('possible-move');
-                    $(this).addClass('selected');
-                    const possibleMoves = getPossibleMoves(square);
-                    possibleMoves.forEach(move => {
-                        $(`.square[data-square="${move}"]`).addClass('possible-move');
-                    });
-                } else {
-                    $('#status').text('Select a White piece to move.');
-                }
-            }
-        });
-
-        // Move button and Enter key handler
-        function handleMoveInput() {
-            const input = $('#move-input').val().trim().toLowerCase();
-            if (isPromoting) {
-                if (['q', 'b', 'n', 'r'].includes(input)) {
-                    makeMove($('#board').data('pending-move'), input);
-                    $('#move-input').val('');
-                } else {
-                    $('#status').text('Invalid promotion piece! Enter q, b, n, or r.');
-                }
-            } else {
-                if (input) {
-                    $('#board').data('pending-move', input);
-                    makeMove(input);
-                    $('#move-input').val('');
-                } else {
-                    $('#status').text('Enter a move (e.g., e2e4).');
-                }
-            }
+    // Reset button handler
+    $('#reset-button').on('click', function() {
+      $.ajax({
+        url: '/reset',
+        method: 'POST',
+        contentType: 'application/json',
+        success: function(data) {
+          $('#board').data('fen', data.fen);
+          renderBoard(data.fen);
+          $('#status').text(data.status);
+          $('#score').text('Score: ' + data.score + ' (Positive = White advantage)');
+          $('#feedback-form').addClass('hidden');
+        },
+        error: function(xhr, status, error) {
+          console.log('AJAX error on reset:', status, error);
+          $('#status').text('Error resetting game.');
         }
+      });
+    });
 
-        $('#move-button').on('click', handleMoveInput);
-
-        $('#move-input').on('keypress', function(e) {
-            if (e.which === 13) {
-                handleMoveInput();
-            }
+    // Feedback button handler
+    $('#feedback-button').on('click', function() {
+      const feedback = $('#feedback-input').val().trim();
+      if (feedback) {
+        $.ajax({
+          url: '/feedback',
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({ feedback: feedback }),
+          success: function(response) {
+            $('#status').text("Thank you for your feedback! 😊");
+            $('#feedback-form').addClass('hidden');
+            $('#feedback-input').val('');
+          },
+          error: function(xhr, status, error) {
+            console.log('AJAX error on feedback:', status, error);
+            $('#status').text('Error submitting feedback.');
+          }
         });
-
-        // Undo button handler
-        $('#undo-button').on('click', function() {
-            $.ajax({
-                url: '/undo',
-                method: 'POST',
-                contentType: 'application/json',
-                success: function(data) {
-                    $('#board').data('fen', data.fen);
-                    renderBoard(data.fen);
-                    $('#status').text(data.status);
-                    $('#score').text('Score: ' + data.score + ' (Positive = White advantage)');
-                    selectedSquare = null;
-                    $('.square').removeClass('selected').removeClass('possible-move');
-                    isPromoting = false;
-                },
-                error: function(xhr, status, error) {
-                    console.log('AJAX error on undo:', status, error);
-                    $('#status').text('Error undoing move.');
-                }
-            });
-        });
-
-        // Reset button handler
-        $('#undo-button').on('click', function() {
-            $.ajax({
-                url: '/undo',
-                method: 'POST',
-                contentType: 'application/json',
-                success: function(data) {
-                    $('#board').data('fen', data.fen);
-                    renderBoard(data.fen);
-                    $('#status').text(data.status);
-                    $('#score').text('Score: ' + data.score + ' (Positive = White advantage)');
-                    selectedSquare = null;
-                    $('.square').removeClass('selected').removeClass('possible-move');
-                    isPromoting = false;
-                },
-                error: function(xhr, status, error) {
-                    console.log('AJAX error on undo:', status, error);
-                    $('#status').text('Error undoing move.');
-                }
-            });
-        });
-
-        // Reset button handler
-        $('#reset-button').on('click', function() {
-            $.ajax({
-                url: '/reset',
-                method: 'POST',
-                contentType: 'application/json',
-                success: function(data) {
-                    $('#board').data('fen', data.fen);
-                    renderBoard(data.fen);
-                    $('#status').text(data.status);
-                    $('#score').text('Score: ' + data.score + ' (Positive = White advantage)');
-                    selectedSquare = null;
-                    $('.square').removeClass('selected').removeClass('possible-move');
-                    isPromoting = false;
-                },
-                error: function(xhr, status, error) {
-                    console.log('AJAX error on reset:', status, error);
-                    $('#status').text('Error resetting game.');
-                }
-            });
-        });
-    </script>
+      } else {
+        $('#status').text('Please enter some feedback 🤗');
+      }
+    });
+  </script>
 </body>
 </html>
