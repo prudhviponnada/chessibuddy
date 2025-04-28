@@ -261,7 +261,6 @@ def reset():
     score = calculate_score(board)
     return jsonify({'fen': board.fen(), 'status': 'Your move (White).', 'score': score})
 
-<<<<<<< HEAD
 @app.route('/feedback', methods=['POST'])
 def feedback():
     """Store user feedback in a file."""
@@ -277,7 +276,5 @@ def feedback():
     except Exception as e:
         return jsonify({'error': 'Error saving feedback.'}), 500
 
-=======
->>>>>>> a742f87d743e047ece373346c5a8a113bedbf0df
 if __name__ == '__main__':
     app.run(debug=True)
