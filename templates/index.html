@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chess Game with AI</title>
+  <title>Created by PRUDHVI♟️ </title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
@@ -106,6 +106,14 @@
       0%, 100% { box-shadow: 0 0 20px 5px red; }
       50% { box-shadow: 0 0 40px 10px red; }
     }
+    #contact-info {
+      animation: pulse 3s infinite;
+      }
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99,102,241, 0.4); }
+      70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(99,102,241, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99,102,241, 0); }
+    }
 
     .animate-checkmate {
       animation: checkmatePulse 1.5s ease-in-out infinite;
@@ -117,7 +125,7 @@
     <!-- Chess Board -->
     <div class="flex flex-col items-center w-full lg:w-auto fade-in-up">
       <h1 class="text-4xl font-bold text-indigo-700 mb-2 animate-bounce"><i class="fas fa-chess"></i> Chess Game</h1>
-      <p class="text-gray-600 mb-6 text-center">Play against AI. You are <strong>White</strong>. Enter a move!</p>
+      <p class="text-gray-600 mb-6 text-center">Play against AI. You are <strong>White</strong>. I am not racist, Enter a move!</p>
       <div class="board-container">
         <div class="coords coords-rank">
           <div>a</div><div>b</div><div>c</div><div>d</div><div>e</div><div>f</div><div>g</div><div>h</div>
@@ -162,7 +170,17 @@
           <i class="fas fa-comment"></i> Submit Feedback
         </button>
       </div>
-      <div id="status"></div>
+      
+      <div id="status">
+        <p class="text-gray-700 text-sm">
+          <span class="font-semibold text-indigo-700">With admiration towards the peace-wise in order to Conquer <br>- Prudhvi<br>.</span>
+          <br><span class="font-semibold text-indigo-700 ml-2">Connect with me:</span>
+          <a href="https://www.linkedin.com/in/prudhviponnada" target="_blank" class="ml-1 text-blue-600 hover:underline hover:text-blue-800 transition duration-300">LinkedIn</a> <br>
+        </p>
+      </div>
+      <div id="contact-info" class="fixed bottom-4 right-4 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-indigo-700 cursor-pointer text-sm z-50">
+        <i class="fas fa-envelope"></i> ponnadaprudhvi18@gmail.com
+      </div>
     </div>
   </div>
 

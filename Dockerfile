@@ -24,11 +24,14 @@ COPY . .
 
 # Copy custom NGINX config
 COPY nginx/default.conf /etc/nginx/sites-available/default
-RUN rm /etc/nginx/sites-enabled/default && \
-    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# Ensure Flask session works — Set a secret key (optional if handled in app config)
+ENV FLASK_SECRET_KEY="your-secret-key"
 
 # Expose HTTP port
 EXPOSE 80
 
-# Run Gunicorn and NGINX together
+# Start Gunicorn and NGINX
 CMD bash -c "gunicorn chessy:app --bind 127.0.0.1:8000 & nginx -g 'daemon off;'"
