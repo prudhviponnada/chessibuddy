@@ -151,10 +151,10 @@ def make_move():
     promotion_piece = data.get('promotion')  # Optional: q, b, n, r
     difficulty = int(data.get('difficulty', 3))  # Default to 3 if not provided
 
-    # Save current state for undo
+    # state for undo
     move_history.append(board.fen())
 
-    # Handle promotion selection
+    # Handling promotion selection
     if pending_promotion and promotion_piece:
         try:
             promotion_map = {'q': chess.QUEEN, 'b': chess.BISHOP, 'n': chess.KNIGHT, 'r': chess.ROOK}
@@ -175,7 +175,7 @@ def make_move():
         # Validate and process human move
         try:
             move = chess.Move.from_uci(move_uci)
-            # Check if move requires promotion
+            # Checking move requires promotion
             piece = board.piece_at(move.from_square)
             if not piece or piece.color != chess.WHITE:
                 move_history.pop()
@@ -198,7 +198,7 @@ def make_move():
     status = ''
     is_checkmate = board.is_checkmate()
     if is_checkmate:
-        status = f"Checkmate! {'Black' if board.turn == chess.WHITE else 'White'} wins!"
+        status = f"Checkmate! {'Black wins! well tried champ' if board.turn == chess.WHITE else 'White wins! GG you are OG'} NOW ENTER THE FEEDBACK 🔫🔫 "
     elif board.is_stalemate():
         status = "Stalemate! Game is a draw."
     elif board.is_insufficient_material():
@@ -216,10 +216,9 @@ def make_move():
             # Check if AI move is a promotion
             piece = board.piece_at(ai_move.from_square)
             to_rank = chess.square_rank(ai_move.to_square)
-            if piece and piece.piece_type == chess.PAWN and to_rank == 0:  # Black pawn to rank 1
+            if piece and piece.piece_type == chess.PAWN and to_rank == 0:  
                 ai_move = chess.Move(ai_move.from_square, ai_move.to_square, promotion=chess.QUEEN)  # Default to queen
             board.push(ai_move)
-            # Update status after AI move
             if board.is_checkmate():
                 status = "Checkmate! Black wins!"
             elif board.is_stalemate():
@@ -261,7 +260,6 @@ def reset():
     score = calculate_score(board)
     return jsonify({'fen': board.fen(), 'status': 'Your move (White).', 'score': score})
 
-<<<<<<< HEAD
 @app.route('/feedback', methods=['POST'])
 def feedback():
     """Store user feedback in a file."""
@@ -277,7 +275,5 @@ def feedback():
     except Exception as e:
         return jsonify({'error': 'Error saving feedback.'}), 500
 
-=======
->>>>>>> a742f87d743e047ece373346c5a8a113bedbf0df
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

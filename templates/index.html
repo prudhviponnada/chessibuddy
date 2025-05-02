@@ -102,6 +102,14 @@
       width: 320px;
       animation: fadeInUp 1.2s ease-out;
     }
+    @keyframes checkmatePulse {
+      0%, 100% { box-shadow: 0 0 20px 5px red; }
+      50% { box-shadow: 0 0 40px 10px red; }
+    }
+
+    .animate-checkmate {
+      animation: checkmatePulse 1.5s ease-in-out infinite;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-100 flex items-center justify-center">
@@ -330,6 +338,9 @@
             if (data.checkmate || data.status.includes('Stalemate') || data.status.includes('insufficient material')) {
               $('#feedback-form').removeClass('hidden');
             }
+            if (data.checkmate) {
+              $('#board').addClass('animate-checkmate');
+              }
           }
         },
         error: function(xhr, status, error) {
