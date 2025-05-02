@@ -12,18 +12,23 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     libffi-dev \
+    nginx \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Copy the application code
 COPY . .
 
-# Expose the port Flask runs on
-EXPOSE 5000
+# Copy custom NGINX config
+COPY nginx/default.conf /etc/nginx/sites-available/default
+RUN rm /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
 
-# Run the application
-CMD ["python", "app.py"]
+# Expose HTTP port
+EXPOSE 80
 
+# Run Gunicorn and NGINX together
+CMD bash -c "gunicorn chessy:app --bind 127.0.0.1:8000 & nginx -g 'daemon off;'"
