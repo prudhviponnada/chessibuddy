@@ -2,9 +2,26 @@ from flask import Flask, render_template, request, jsonify
 import chess
 import random
 import os
+import uuid
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
+user_games = {}
+def start_new_game():
+    return {
+        'board': chess.Board(),
+        'move_history': [],
+        'pending_promotion': None
+    }
 
+def get_user_game():
+    user_id = session.get('user_id')
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        session['user_id'] = user_id
+    if user_id not in user_games:
+        user_games[user_id] = start_new_game()
+    return user_games[user_id]
 # Global board, move history, and pending promotion
 board = chess.Board()
 move_history = []  # Store board states
@@ -138,33 +155,35 @@ def get_ai_move(board, depth=3):
 
 @app.route('/')
 def index():
-    """Render the main chess game page."""
+    game = get_user_game()
+    board = game['board']
     score = calculate_score(board)
     return render_template('index.html', board=board.fen(), status="Your move (White).", score=score)
 
 @app.route('/move', methods=['POST'])
 def make_move():
-    """Handle human move and return AI response."""
-    global board, move_history, pending_promotion
+    game = get_user_game()
+    board = game['board']
+    move_history = game['move_history']
+    pending_promotion = game['pending_promotion']
+
     data = request.json
     move_uci = data.get('move')
-    promotion_piece = data.get('promotion')  # Optional: q, b, n, r
-    difficulty = int(data.get('difficulty', 3))  # Default to 3 if not provided
+    promotion_piece = data.get('promotion')
+    difficulty = int(data.get('difficulty', 3))
 
-    # state for undo
     move_history.append(board.fen())
 
-    # Handling promotion selection
     if pending_promotion and promotion_piece:
         try:
             promotion_map = {'q': chess.QUEEN, 'b': chess.BISHOP, 'n': chess.KNIGHT, 'r': chess.ROOK}
             if promotion_piece not in promotion_map:
                 move_history.pop()
-                return jsonify({'error': 'Invalid promotion piece! Choose q, b, n, or r.'})
+                return jsonify({'error': 'Invalid promotion piece!'})
             move = chess.Move.from_uci(pending_promotion + promotion_piece)
             if move in board.legal_moves:
                 board.push(move)
-                pending_promotion = None
+                game['pending_promotion'] = None
             else:
                 move_history.pop()
                 return jsonify({'error': 'Illegal promotion move!'})
@@ -172,18 +191,15 @@ def make_move():
             move_history.pop()
             return jsonify({'error': 'Invalid move format!'})
     else:
-        # Validate and process human move
         try:
             move = chess.Move.from_uci(move_uci)
-            # Checking move requires promotion
             piece = board.piece_at(move.from_square)
             if not piece or piece.color != chess.WHITE:
                 move_history.pop()
                 return jsonify({'error': 'You can only move white pieces!'})
-
             to_rank = chess.square_rank(move.to_square)
-            if piece and piece.piece_type == chess.PAWN and to_rank == 7:  # White pawn to rank 8
-                pending_promotion = move_uci
+            if piece.piece_type == chess.PAWN and to_rank == 7:
+                game['pending_promotion'] = move_uci
                 return jsonify({'status': 'Choose promotion piece (q, b, n, r)', 'fen': board.fen(), 'score': calculate_score(board)})
             if move in board.legal_moves:
                 board.push(move)
@@ -194,10 +210,8 @@ def make_move():
             move_history.pop()
             return jsonify({'error': 'Invalid move format!'})
 
-    # Check game status
-    status = ''
-    is_checkmate = board.is_checkmate()
-    if is_checkmate:
+    status = "Your move (White)."
+    if board.is_checkmate():
         status = f"Checkmate! {'Black wins! well tried champ' if board.turn == chess.WHITE else 'White wins! GG you are OG'} NOW ENTER THE FEEDBACK 🔫🔫 "
     elif board.is_stalemate():
         status = "Stalemate! Game is a draw."
@@ -205,19 +219,15 @@ def make_move():
         status = "Draw due to insufficient material."
     elif board.is_check():
         status = "Check!"
-    else:
-        status = "Your move (White)."
 
-    # AI move (Black)
     ai_move = None
     if not board.is_game_over() and board.turn == chess.BLACK:
         ai_move = get_ai_move(board, depth=difficulty)
         if ai_move:
-            # Check if AI move is a promotion
             piece = board.piece_at(ai_move.from_square)
             to_rank = chess.square_rank(ai_move.to_square)
-            if piece and piece.piece_type == chess.PAWN and to_rank == 0:  
-                ai_move = chess.Move(ai_move.from_square, ai_move.to_square, promotion=chess.QUEEN)  # Default to queen
+            if piece and piece.piece_type == chess.PAWN and to_rank == 0:
+                ai_move = chess.Move(ai_move.from_square, ai_move.to_square, promotion=chess.QUEEN)
             board.push(ai_move)
             if board.is_checkmate():
                 status = "Checkmate! Black wins!"
@@ -228,41 +238,40 @@ def make_move():
             elif board.is_check():
                 status = "Check!"
 
-    score = calculate_score(board)
     return jsonify({
         'fen': board.fen(),
         'status': status,
         'ai_move': ai_move.uci() if ai_move else None,
-        'score': score,
-        'checkmate': is_checkmate
+        'score': calculate_score(board),
+        'checkmate': board.is_checkmate()
     })
 
 @app.route('/undo', methods=['POST'])
 def undo():
-    """Undo the last move (both human and AI)."""
-    global board, move_history, pending_promotion
+    game = get_user_game()
+    board = game['board']
+    move_history = game['move_history']
+    pending_promotion = game['pending_promotion']
+
     if pending_promotion:
-        pending_promotion = None
+        game['pending_promotion'] = None
         move_history.pop()
-        return jsonify({'fen': board.fen(), 'status': 'Your move (White).', 'score': calculate_score(board)})
-    if move_history:
-        board = chess.Board(move_history.pop())
-    score = calculate_score(board)
-    return jsonify({'fen': board.fen(), 'status': 'Your move (White).', 'score': score})
+    elif move_history:
+        board.set_fen(move_history.pop())
+
+    return jsonify({'fen': board.fen(), 'status': 'Your move (White).', 'score': calculate_score(board)})
 
 @app.route('/reset', methods=['POST'])
 def reset():
-    """Reset the game to the initial position."""
-    global board, move_history, pending_promotion
-    board = chess.Board()
-    move_history = []
-    pending_promotion = None
-    score = calculate_score(board)
-    return jsonify({'fen': board.fen(), 'status': 'Your move (White).', 'score': score})
+    user_id = session.get('user_id')
+    if user_id:
+        user_games[user_id] = start_new_game()
+    game = user_games[user_id]
+    board = game['board']
+    return jsonify({'fen': board.fen(), 'status': 'Your move (White).', 'score': calculate_score(board)})
 
 @app.route('/feedback', methods=['POST'])
 def feedback():
-    """Store user feedback in a file."""
     data = request.json
     feedback = data.get('feedback')
     if not feedback or len(feedback) > 250:
@@ -272,8 +281,8 @@ def feedback():
         with open('feedback.txt', 'a') as f:
             f.write(f"{feedback}\n")
         return jsonify({'message': 'Feedback submitted successfully!'})
-    except Exception as e:
+    except Exception:
         return jsonify({'error': 'Error saving feedback.'}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True)
